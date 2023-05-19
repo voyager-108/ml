@@ -9,6 +9,10 @@ packages = [{include = "samolet_ml"}]
 [tool.poetry.dependencies]
 python = ">=3.10"
 opencv-python = "^4.7.0.72"
+ipykernel = "^6.23.1"
+requests = "^2.30.0"
+lxml = "^4.9.2"
+bs4 = "^0.0.1"
 
 
 [build-system]
