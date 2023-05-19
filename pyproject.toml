@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "samolet-ml"
+version = "0.0.1"
+description = "ML сервис для решения задачи о вычислении степени отделки квартиры"
+authors = ["Aleksandr Lobanov <aleksandr.lobanov.official@gmail.com>"]
+readme = "README.md"
+packages = [{include = "samolet_ml"}]
+
+[tool.poetry.dependencies]
+python = "3.10"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
