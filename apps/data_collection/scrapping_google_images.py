@@ -70,7 +70,7 @@ def get_original_images(soup, search, file_location, limit=40):
             search_str = "_".join(search.split())
             urllib.request.urlretrieve(original, os.path.join(file_location, f"{search_str}_{index}.jpg"))
             # sleep a random number of seconds after each image
-            sleep(random.randint(60, 120))    
+            sleep(random.randint(30, 45))    
         except HTTPError as e:
             print(e)
         except Exception as e:

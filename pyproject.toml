@@ -13,6 +13,7 @@ ipykernel = "^6.23.1"
 requests = "^2.30.0"
 lxml = "^4.9.2"
 bs4 = "^0.0.1"
+selenium = "^4.9.1"
 
 
 [build-system]
