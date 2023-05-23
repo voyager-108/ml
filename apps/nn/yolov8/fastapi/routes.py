@@ -15,11 +15,9 @@ router = APIRouter(
 _ServedYOLO = ServedModel(
     YOLOv8Wrapper,
     pt_path="./models/1200.pt",
-    cpu=1,
+    gpu=1,
     enable_printing=True
 )
-
-BATCH = 8
 
 @router.post("/video")
 async def detect_video(video: UploadFile = File(...)) -> list[Prediction]:
@@ -27,25 +25,9 @@ async def detect_video(video: UploadFile = File(...)) -> list[Prediction]:
         shutil.copyfileobj(video.file, open(f"{tempdir}/video.mp4", "wb"))
         split_video_by_frames(f"{tempdir}/video.mp4", take_each_n=1, output_collection=f"{tempdir}/frames", verbose=False)
         frames_path = [
-            f"{tempdir}/frames/{frame}" for frame in os.listdir(f"{tempdir}/frames")
+            (f"{tempdir}/frames/{frame}",) for frame in os.listdir(f"{tempdir}/frames")
         ]
-
-        # Split on frames_path on batches
-        batch_frames_path = []
-        for i in range(0, len(frames_path), BATCH):
-            if i+BATCH > len(frames_path):
-                batch_frames_path.append((frames_path[i:],))
-            else:
-                batch_frames_path.append((frames_path[i:i+BATCH],))
-
-        results_ = _ServedYOLO.run("run", batch_frames_path, [{}] * len(batch_frames_path))
-
-        # Merge batched results
-        results = []
-        for result in results_:
-            results.extend(result)
-            
-
+        results = _ServedYOLO.run("run", frames_path, [{}] * len(frames_path))
         predictions = []
         for i, result in enumerate(results):
             result = result[0]
