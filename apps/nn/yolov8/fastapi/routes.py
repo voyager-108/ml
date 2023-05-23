@@ -1,10 +1,12 @@
+import os
 import shutil
 import tempfile
 from fastapi import APIRouter, UploadFile, File
 
 from ..model import YOLOv8Wrapper
 from ...serve import ServedModel
-
+from .models import Prediction, BBox
+from ....utility.split_video import split_video_by_frames
 router = APIRouter(
     prefix="/yolo",
     tags=["yolo"],
@@ -18,13 +20,29 @@ _ServedYOLO = ServedModel(
 )
 
 @router.post("/video")
-async def detect_video(video: UploadFile = File(...)):
-    result = []
-    # Get file format
-    fmt = video.filename.split(".")[-1]
-    with tempfile.NamedTemporaryFile(suffix=f".{fmt}") as temp:
-        shutil.copyfileobj(video.file, temp)
-        video = temp.name
-        result = _ServedYOLO("run", video)
-    return result
+async def detect_video(video: UploadFile = File(...)) -> list[Prediction]:
+    with tempfile.TemporaryDirectory() as tempdir:
+        shutil.copyfileobj(video.file, open(f"{tempdir}/video.mp4", "wb"))
+        split_video_by_frames(f"{tempdir}/video.mp4", take_each_n=1, output_collection=f"{tempdir}/frames", verbose=False)
+        frames_path = [
+            (f"{tempdir}/frames/{frame}",) for frame in os.listdir(f"{tempdir}/frames")
+        ]
+        results = _ServedYOLO.run("run", frames_path, [{}] * len(frames_path))
+        predictions = []
+        for i, result in enumerate(results):
+            result = result[0]
+            predictions.append(
+                Prediction(
+                    frameNumber=i,
+                    bboxes=[
+                        BBox(
+                            topLeft=(bbox.xyxy[0][0], bbox.xyxy[0][1]),
+                            bottomRight=(bbox.xyxy[0][2], bbox.xyxy[0][3]),
+                            className=result.names[int(bbox.cls.item())]
+                        ) for bbox in result.boxes
+                    ]
+                )
+            )
+
+    return predictions
         
