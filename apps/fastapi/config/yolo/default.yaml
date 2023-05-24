@@ -1,3 +1,0 @@
-pt_path: ./models/1200.onnx
-gpu: True
-cpu: 1

@@ -1,3 +1,4 @@
+import torch
 import ultralytics
 
 class YOLOv8Wrapper:
@@ -11,10 +12,15 @@ class YOLOv8Wrapper:
     
         self._Model = ultralytics.YOLO(
             pt_path,
+            task='detect',
             *args,
             **kwargs
         )
 
     def run(self, data_source: str, *args, **kwargs):
-        return  self._Model.predict(data_source, *args, **kwargs)
+        device = 'cpu'
+        if torch.cuda.is_available() and hasattr(self, '_ShouldUseGPU'):
+            device = 0
+
+        return  self._Model.predict(data_source, *args, **kwargs, device=device)
     

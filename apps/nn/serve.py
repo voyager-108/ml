@@ -1,4 +1,5 @@
 import logging
+import signal
 from subprocess import PIPE, Popen
 from typing import Any, Callable
 from xml.etree.ElementTree import fromstring
@@ -14,28 +15,34 @@ def init_model_worker(constructor, args, kwargs, _UseGPU: bool = False):
     if hasattr(_Model, 'to') and _UseGPU:
         try:  _Model.to('cuda')
         except: ...
+    elif _UseGPU:
+        setattr(_Model, '_ShouldUseGPU', True)
 
 
 def run_model_worker(attr: str, *args, **kwargs):
-    _X = getattr(_Model, attr)(*args, **kwargs)
+    try:
+        _X = getattr(_Model, attr)(*args, **kwargs)
+    except KeyboardInterrupt:
+        return []
 
     if hasattr(_X, 'detach'):
         _X = getattr(_X, 'detach')()
     
     if hasattr(_X, 'cpu'):
         _X = getattr(_X, 'cpu')()
+
     
     return _X
 
 def get_gpu_info(*args, **kwargs):
     p = Popen(["nvidia-smi", "-q", "-x"], stdout=PIPE)
-    outs, errors = p.communicate()
+    outs, _ = p.communicate()
     xml = fromstring(outs)
     datas = []
     driver_version = xml.findall("driver_version")[0].text
     cuda_version = xml.findall("cuda_version")[0].text
 
-    for gpu_id, gpu in enumerate(xml.iterfind("gpu")):
+    for _, gpu in enumerate(xml.iterfind("gpu")):
         gpu_data = {}
         name = [x for x in gpu.iterfind("product_name")][0].text
         memory_usage = gpu.findall("fb_memory_usage")[0]
@@ -47,9 +54,6 @@ def get_gpu_info(*args, **kwargs):
         gpu_data["cuda_version"] = cuda_version
         datas.append(gpu_data)
     return datas 
-
-
-
 
 
 class ServedModel:
@@ -74,6 +78,7 @@ class ServedModel:
             f"served::{self._ModelName}"
         )
 
+
         if self._EnableLogging:
             self._Logger.setLevel(logging_level)
             self._Logger.handlers.clear()
@@ -94,18 +99,30 @@ class ServedModel:
 
         _StatTable = Table(show_header=False)
         _StatTable.add_row("CPU", str(cpu))
-        _GPUData = get_gpu_info()
-        for i, _GPU in enumerate(_GPUData):
-            _StatTable.add_row(f"GPU {i}", f"{_GPU['name']} ({_GPU['total_memory']})")
+        try:
+            _GPUData = get_gpu_info()
+            for i, _GPU in enumerate(_GPUData):
+                _StatTable.add_row(f"GPU {i}", f"{_GPU['name']} ({_GPU['total_memory']})")
+        except:
+            _StatTable.add_row("GPU", "Could not detect")
 
         if self._EnablePrinting:
             self._RichConsole.print(_StatTable)
 
-        self._Worker = ProcessPoolExecutor(
-            max_workers=cpu or 1,
-            initializer=init_model_worker,
-            initargs=(model, model_args, model_kwargs, gpu is not None),
-        )
+        # self._Worker = ProcessPoolExecutor(
+        #     max_workers=cpu or 1,
+        #     initializer=init_model_worker,
+        #     initargs=(model, model_args, model_kwargs, gpu is not None),
+        # )
+
+        self._Model = model(*model_args, **model_kwargs)
+
+        if gpu is not None:
+            if hasattr(self._Model, 'to'):
+                self._Model.to(gpu)
+            else:
+                setattr(self._Model, '_ShouldUseGPU', True)
+
 
         if self._EnablePrinting:
             self._RichConsole.print(f"[bold]Started serving [green]{self._ModelName}[/green][/bold]")
@@ -114,23 +131,27 @@ class ServedModel:
         fn = fn or '__call__'
 
         _ArgsString = str(args)
-        if len(_ArgsString) > 20:
-            _ArgsString = _ArgsString[:20] + '...'
+        if len(_ArgsString) > 40:
+            _ArgsString = _ArgsString[:20] + '...' + _ArgsString[-20:]
         
         _KwargsString = str(kwargs)
-        if len(_KwargsString) > 20:
-            _KwargsString = _KwargsString[:20] + '...'
+        if len(_KwargsString) > 40:
+            _KwargsString = _KwargsString[:20] + '...' + _KwargsString[-20:]
         
         if self._EnablePrinting:
             self._RichConsole.print(f"- Calling [bold magenta]{fn}[/bold magenta] with args: \"{_ArgsString}\" and kwargs: {_KwargsString}")
         return self._Worker.submit(run_model_worker, fn, *args, **kwargs)
+        return self._M
     
     def __call__(self, *args: Any, **kwds: Any) -> Any:
         if self._EnablePrinting:
             self._RichConsole.print(f"Single call:")
-        return self.__Call_worker(*args, **kwds).result()
-    
-
+        # return self.__Call_worker(*args, **kwds).result()
+        try:
+            return getattr(self._Model, '__call__')(*args, **kwds)
+        except KeyboardInterrupt:
+            return None
+        
     def run(self, fn: str, args: list[Any] = [], kwargs: list[dict[Any, Any]] = []) -> Any:
         fn = fn or '__call__'
         if self._EnablePrinting:
@@ -138,15 +159,20 @@ class ServedModel:
         results: list[Future] = []
         for arg, kwarg in zip(args, kwargs):
             results.append(
-                self.__Call_worker(fn, *arg, **dict(kwarg))
+                # self.__Call_worker(fn, *arg, **dict(kwarg))
+                getattr(self._Model, fn)(*arg, **dict(kwarg))
             )
-        return [r.result() for r in results]
-    
+        # return [r.result() for r in results]
+        try:
+            return results
+        except KeyboardInterrupt:
+            return []
 
     def __del__(self) -> None:
         if hasattr(self, '_Worker'):
             self._Worker.shutdown()
-        if self._EnablePrinting:
-            self._RichConsole.print(f"[bold]Stopped serving [green]{self._ModelName}[/green][/bold]")
+        # if self._EnablePrinting:
+        
+        #     self._RichConsole.print(f"[bold]Stopped serving [green]{self._ModelName}[/green][/bold]")
 
-    
+
