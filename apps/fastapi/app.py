@@ -32,8 +32,8 @@ def main(config: DictConfig):
     
     # uvicorn.run("apps.fastapi.app:app", **config['uvicorn'])
     # serve(app, **config['server'])
-    hypercorn_config = hypercorn.Config()
-    hypercorn_config.from_mapping(config['server'])
+    hypercorn_config = hypercorn.Config().from_mapping(**config['server'])
+    hypercorn_config.from_mapping(**config['server'])
     asyncio.run(
         hypercorn.serve(app, hypercorn_config)
     )
