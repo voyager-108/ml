@@ -17,3 +17,4 @@ class YOLOv8Wrapper:
 
     def run(self, data_source: str, *args, **kwargs):
         return  self._Model.predict(data_source, *args, **kwargs)
+    
