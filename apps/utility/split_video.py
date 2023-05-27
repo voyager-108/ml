@@ -89,13 +89,31 @@ if __name__ == "__main__":
         help="Output directory"
     )
 
+    parser.add_argument(
+        '--as-folder',
+        action='store_true',
+        help="Save the frames in a folder with the same name as the video"
+    )
+
     args = parser.parse_args()
     collection = args.o or f"{args.video_file_path}_frames"
+
+    path = args.video_file_path
+    if args.as_folder:
+        path = os.path.join(
+            collection,
+            os.path.splitext(
+                os.path.basename(args.video_file_path)
+            )[0]
+        )
+
+
+    print(f"Saving frames in {path}")
 
     split_video_by_frames(
         args.video_file_path,
         args.n,
-        args.o,
+        path,
         verbose=True
     )
 
