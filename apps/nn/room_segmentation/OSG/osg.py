@@ -248,7 +248,7 @@ def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int
     """
         
     # first step is to build the distances matrix
-    logger = logging.getLogger("ServerApplication").info(('Building the distances matrix...')
+    logger = logging.getLogger("ServerApplication").info('Building the distances matrix...')
     distances = build_distances_matrix(matrix, horizontal=horizontal)
     # extract the max maig
     max_magnitude = int(np.amax(np.abs(matrix)))
