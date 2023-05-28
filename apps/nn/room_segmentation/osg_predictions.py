@@ -3,6 +3,7 @@ import torch
 import numpy as np
 from _collections_abc import Sequence
 from .OSG.osg import osg
+import logging
 
 def ascending_samples(l: Sequence, min_index: int=0, n: int=None) -> list[list]:
     """Given an iterable, this function returns all the possible ordered samples that satisfy the following conditions:
@@ -202,9 +203,9 @@ def predict(embeddings: Union[np.ndarray, torch.Tensor], classifier_output: Unio
         embeddings = embeddings.cpu().numpy()# .squeeze()
 
     # determine the boundaries according to the OSG algorithm
-    print("start calculating boundaries")
+    logger = logging.getLogger("ServerApplication").info("start calculating boundaries")
     boundaries = osg(embeddings)
-    print("start combining")
+    logger = logging.getLogger("ServerApplication").info("start combining")
     return  __combine(classifier_output=classifier_output, boundaries=boundaries, logits=logits)
 
 

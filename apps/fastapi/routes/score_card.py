@@ -160,10 +160,7 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
         stream=True,
         device=yolo_device
     )
-
-    gc.collect()
-    torch.cuda.empty_cache()
-
+    
     logger.info(f"{video_path}, yolo finished")
     inputs = torch.Tensor(
         np.hstack((embeddings, np.array(vectors),))
