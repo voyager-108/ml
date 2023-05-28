@@ -53,12 +53,14 @@ room_classes = ['bathroom', 'corridor', 'kitchen', 'livingroom', 'common_area', 
 model = YOLO(os.environ['YOLO_PT_PATH'], task='detect')
 
 embedder = RoomEmbedderPipeline(device=embedding_device)
-
+embedder.model.eval()
 
 classifier = RoomClassifier.from_pretrained(
     'ummagumm-a/samolet-room-classifier', 
     use_auth_token=os.environ['HF_AUTH_TOKEN'],
 ).to_device(embedding_device)
+
+classifier.eval()
 
 
 def calculate_iou(range1: tuple[int, int], range2: tuple[int, int]) -> float:
