@@ -31,13 +31,15 @@ yolo_device = (0 if torch.cuda.is_available() and USE_CUDA_YOLO else 'cpu')
 # Logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s :: %(message)s",
 )
 
 
 # Server logger
 logger = logging.getLogger("ServerApplication")
-logger.addHandler(logging.StreamHandler())
+streamHandler = logging.StreamHandler()
+streamHandler.setFormatter(logging.Formatter("%(asctime)s ::  %(message)s"))
+logger.setHandler(streamHandler)
 
 # Score card router
 score_card_router = APIRouter(
@@ -158,7 +160,7 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
 
     gc.collect()
     torch.cuda.empty_cache()
-    
+
     logger.info(f"{video_path}, yolo finished")
     inputs = torch.Tensor(
         np.hstack((embeddings, np.array(vectors),))
@@ -179,7 +181,7 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
 @score_card_router.post('/video')
 def process_video_for_score_card(video: UploadFile = File(...)):
     video_format = video.filename.split('.')[-1]
-    with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format}') as video_temp_file:
+    with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
         shutil.copyfileobj(video.file, video_temp_file)
         return _process_video_file_for_score_card(video_temp_file.name)
                                           
