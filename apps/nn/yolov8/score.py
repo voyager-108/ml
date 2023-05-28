@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import numpy as np
 import ultralytics
+import tqdm
 from pydantic import BaseModel
 
 

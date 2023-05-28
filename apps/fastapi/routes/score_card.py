@@ -19,21 +19,27 @@ import gc
 
 # Number of frames to skip when splitting the video
 skip = 5
+USE_CUDA_EMBEDDINGS = 'EMBEDDINGS_CUDA' in os.environ and os.environ['EMBEDDINGS_CUDA'] == 'TRUE'
+USE_CUDA_YOLO = 'YOLO_CUDA' in os.environ and os.environ['YOLO_CUDA'] == 'TRUE'
 
 # Device used for calculating embeddings
-embedding_device = ('cuda:0' if torch.cuda.is_available() and os.environ['EMBEDDINGS_CUDA'] == 'TRUE' else 'cpu')
+embedding_device = ('cuda:0' if torch.cuda.is_available() and USE_CUDA_EMBEDDINGS else 'cpu')
 
 # Device used for running YOLO
-yolo_device = (0 if torch.cuda.is_available() and os.environ['YOLO_CUDA'] == 'TRUE' else 'cpu')
+yolo_device = (0 if torch.cuda.is_available() and USE_CUDA_YOLO else 'cpu')
 
 # Logging configuration
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s :: %(message)s",
 )
+
 
 # Server logger
 logger = logging.getLogger("ServerApplication")
+streamHandler = logging.StreamHandler()
+streamHandler.setFormatter(logging.Formatter("%(asctime)s ::  %(message)s"))
+logger.addHandler(streamHandler)
 
 # Score card router
 score_card_router = APIRouter(
@@ -47,12 +53,14 @@ room_classes = ['bathroom', 'corridor', 'kitchen', 'livingroom', 'common_area', 
 model = YOLO(os.environ['YOLO_PT_PATH'], task='detect')
 
 embedder = RoomEmbedderPipeline(device=embedding_device)
-
+embedder.model.eval()
 
 classifier = RoomClassifier.from_pretrained(
     'ummagumm-a/samolet-room-classifier', 
     use_auth_token=os.environ['HF_AUTH_TOKEN'],
 ).to_device(embedding_device)
+
+classifier.eval()
 
 
 def calculate_iou(range1: tuple[int, int], range2: tuple[int, int]) -> float:
@@ -137,7 +145,8 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
     logger.info(f"{video_path}, total frames: {len(frames)}")
     # run embeddings in parallel
     # embeddings = pool.submit(worker, 'embeddings', frames)
-    embeddings = embedder(frames)
+    with torch.no_grad(): 
+        embeddings = embedder(frames)
 
     gc.collect()
     torch.cuda.empty_cache()
@@ -154,18 +163,16 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
 
     gc.collect()
     torch.cuda.empty_cache()
+
     logger.info(f"{video_path}, yolo finished")
-    # vectors = vectors[::skip]
-    # if len(frames) % skip != 0:
-    #     vectors = vectors[:-1]
     inputs = torch.Tensor(
         np.hstack((embeddings, np.array(vectors),))
     )
-    
-    logits = classifier(inputs)
-    # print("Embeddings:", embeddings.shape)
-    # print("Logits:", logits.shape)
-    classification = predict(embeddings, logits.detach().cpu(), logits=True)
+    logger.info(f"{video_path}, yolo data prepared")
+    with torch.no_grad():
+        logits = classifier(inputs).cpu()
+        logger.info(f"{video_path}, logits: {logits.shape}")
+    classification = predict(embeddings, logits, logits=True)
     logger.info(f"{video_path}, classfied")
     yolo_output = assign_to_rooms(classification, yolo_output)
     logger.info(f"{video_path}, finished")
@@ -179,7 +186,7 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
 @score_card_router.post('/video')
 def process_video_for_score_card(video: UploadFile = File(...)):
     video_format = video.filename.split('.')[-1]
-    with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format}') as video_temp_file:
+    with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
         shutil.copyfileobj(video.file, video_temp_file)
         return _process_video_file_for_score_card(video_temp_file.name)
                                           
