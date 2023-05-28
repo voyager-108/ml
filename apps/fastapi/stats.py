@@ -269,5 +269,3 @@ def derive_statistics(outputs: list[YOLOv8Objects]) -> ScoreCardReport:
     )
 
     stats.livingOrKitchenWindow = num_of_finished_windowsills / num_of_windows if num_of_windows > 0 else 0   
-
-    return stats
