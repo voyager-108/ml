@@ -61,7 +61,7 @@ class RoomClassifier(PreTrainedModel):
         images_ = torch.tensor(np.array(images), dtype=torch.float32)
 
         for i in range(0, len(images_), batch_size):
-            preds.append(self(images_[i:i+batch_size]))
+            preds.append(self(images_[i:i+batch_size]).cpu())
 
         preds = torch.vstack(preds)
 
