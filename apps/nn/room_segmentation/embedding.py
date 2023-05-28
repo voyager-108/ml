@@ -1,6 +1,3 @@
-"""
-...
-"""
 import os
 import numpy as np
 from transformers import ViTImageProcessor, ViTModel
@@ -32,9 +29,10 @@ class RoomDimReducer:
 
 
 class RoomEmbedderPipeline:
-    def __init__(self):
+    def __init__(self, use_gpu: bool = False):
         # Load the dataset of features used during training
-        dds = load_dataset("ummagumm-a/frames_room_cls")
+        dds = load_dataset("ummagumm-a/frames_room_cls", use_auth_token=os.environ['HF_AUTH_TOKEN']
+)
         train_ds = dds['train']
         test_ds = dds['test']
 
@@ -46,9 +44,19 @@ class RoomEmbedderPipeline:
         del train_ds, test_ds, dds
 
         # Load a pretrained embedder
-        self.processor = ViTImageProcessor.from_pretrained('ummagumm-a/samolet_encoder_finetuned')
-        self.model = ViTModel.from_pretrained('ummagumm-a/samolet_encoder_finetuned',
-                                              add_pooling_layer=False)
+        self.processor = ViTImageProcessor.from_pretrained(
+            'ummagumm-a/samolet_encoder_finetuned',
+            use_auth_token=os.environ['HF_AUTH_TOKEN']
+        )
+        self.model = ViTModel.from_pretrained(
+            'ummagumm-a/samolet_encoder_finetuned',
+            use_auth_token=os.environ['HF_AUTH_TOKEN'],
+            add_pooling_layer=False
+        )
+
+        if use_gpu:
+            self.model = self.model.to(torch.device('cuda:0'))
+            # self.processor = self.processor.to(torch.device('cuda:0'))
 
     def __call__(self, images: list[np.ndarray]):
         with torch.no_grad():

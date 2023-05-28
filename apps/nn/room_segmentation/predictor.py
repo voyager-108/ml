@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from transformers import PreTrainedModel, PretrainedConfig
 
-from apps.room_segmentation.embedding import example
+from .embedding import example
 
 class RoomRawClassifier(nn.Module):
     def __init__(self, input_dim=371, hidden_dim=50,

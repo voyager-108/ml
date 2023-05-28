@@ -1,12 +1,10 @@
-import asyncio
-import os
 from fastapi import FastAPI
-import hydra
 from fastapi.middleware.cors import CORSMiddleware
-from omegaconf import DictConfig
-from waitress import serve # WSGI
 import hypercorn.asyncio as hypercorn
-from ..nn.yolov8.fastapi.routes import router as yolov8_router, serve_yolo
+
+from .routes.score_card import score_card_router
+
+# from ..nn.yolov8.fastapi.routes import router as yolov8_router, serve_yolo
 
 app = FastAPI()
 
@@ -18,8 +16,8 @@ app.add_middleware(
         allow_headers=["*"],
 )
 
-serve_yolo(os.environ['YOLO_CONFIG'])
-app.include_router(yolov8_router)
+app.include_router(score_card_router)
+
 
 
 # @hydra.main(config_path="config", config_name="default", version_base="1.1")
