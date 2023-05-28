@@ -165,8 +165,9 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
     inputs = torch.Tensor(
         np.hstack((embeddings, np.array(vectors),))
     )
-    
+    logger.info(f"{video_path}, yolo data prepared")
     logits = classifier(inputs)
+    logger.info(f"{video_path}, logits: {logits.shape}")
     classification = predict(embeddings, logits.detach().cpu(), logits=True)
     logger.info(f"{video_path}, classfied")
     yolo_output = assign_to_rooms(classification, yolo_output)
