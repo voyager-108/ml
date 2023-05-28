@@ -285,7 +285,7 @@ def __score_non_common_area(stats: ScoreCardReport) -> float:
     
     # the score for the floor in non common areas
     score_floor_non_common = int(stats.allButCommonFinishedFloor + stats.allButCommonIntermediateFloor + stats.allButCommonRawFloor) == 0  
-    +  (4 / 7) * stats.stats.allButCommonFinishedFloor + (2 / 7) * stats.allButCommonIntermediateFloor + (1 / 7) * stats.allButCommonRawFloor
+    +  (4 / 7) * stats.allButCommonFinishedFloor + (2 / 7) * stats.allButCommonIntermediateFloor + (1 / 7) * stats.allButCommonRawFloor
     
     # the score for the ceiling in non commons areas
     score_ceiling_non_common = int(stats.allButCommonFinishedCeiling + stats.allButCommonRawCeiling == 0)  
