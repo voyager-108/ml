@@ -247,6 +247,7 @@ def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int
     """
         
     # first step is to build the distances matrix
+    print('Building the distances matrix...')
     distances = build_distances_matrix(matrix, horizontal=horizontal)
     # extract the max maig
     max_magnitude = int(np.amax(np.abs(matrix)))
@@ -255,6 +256,7 @@ def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int
     
     best_cost, best_grouping = None, None 
 
+    print('Finding the best grouping...')
     for cte in np.linspace(1, max_magnitude, trials):
         # as norm of the matrix affects SVD, let's multiply by some constant
         # find the best_k

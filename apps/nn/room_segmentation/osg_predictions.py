@@ -202,7 +202,9 @@ def predict(embeddings: Union[np.ndarray, torch.Tensor], classifier_output: Unio
         embeddings = embeddings.cpu().numpy()# .squeeze()
 
     # determine the boundaries according to the OSG algorithm
+    print("start calculating boundaries")
     boundaries = osg(embeddings)
+    print("start combining")
     return  __combine(classifier_output=classifier_output, boundaries=boundaries, logits=logits)
 
 

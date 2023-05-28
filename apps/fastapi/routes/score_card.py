@@ -145,7 +145,8 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
     logger.info(f"{video_path}, total frames: {len(frames)}")
     # run embeddings in parallel
     # embeddings = pool.submit(worker, 'embeddings', frames)
-    embeddings = embedder(frames)
+    with torch.no_grad(): 
+        embeddings = embedder(frames)
 
     gc.collect()
     torch.cuda.empty_cache()
