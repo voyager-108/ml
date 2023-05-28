@@ -56,19 +56,30 @@ class RoomClassifier(PreTrainedModel):
         return self.model(input)
 
     def pred_list(self, images: list[np.ndarray]):
-        images_ = torch.tensor(np.array(images))
+        images_ = torch.tensor(np.array(images), dtype=torch.float32).to(self.config.device)
 
         return self(images_)
+
+    def to_device(self, device):
+        self.config.device = device
+        self.model = self.model.to(device)
+
+        return self
 
 
 if __name__ == "__main__":
 
     model = RoomClassifier.from_pretrained('ummagumm-a/samolet-room-classifier')
+    model = model.to_device('cuda')
 
     # Check docs for that in the `embedding` file
-    data = example()
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = 'cpu'
+    print("device:", device)
+    data = example(device)
 
     with torch.no_grad():
+        data = np.array([np.hstack((x, np.zeros(23, ))) for x in data])
         pred = model.pred_list(data)
 
         print(pred.shape)
