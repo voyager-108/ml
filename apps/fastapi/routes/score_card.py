@@ -5,45 +5,65 @@ from ...nn.yolov8.score import YOLOv8Objects, analyze_video
 from ...nn.room_segmentation.embedding import RoomEmbedderPipeline
 from ...nn.room_segmentation.predictor import RoomClassifier
 from ...nn.room_segmentation.osg_predictions import predict
-from ..score_card import derive_statistics
+from ..stats import derive_statistics
 
 from ultralytics import YOLO
 from fastapi import APIRouter, File, UploadFile
-from concurrent import futures
+
 import tempfile
 import torch 
 import shutil
 import logging
 import gc
 
-skip = 5
-device = ('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+# Number of frames to skip when splitting the video
+skip = 5
+
+# Device used for calculating embeddings
+embedding_device = ('cuda:0' if torch.cuda.is_available() and os.environ['EMBEDDINGS_CUDA'] == 'TRUE' else 'cpu')
+
+# Device used for running YOLO
+yolo_device = (0 if torch.cuda.is_available() and os.environ['YOLO_CUDA'] == 'TRUE' else 'cpu')
+
+# Logging configuration
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
+# Server logger
 logger = logging.getLogger("ServerApplication")
 
+# Score card router
 score_card_router = APIRouter(
     prefix='/score-card'
 )
 
+# Textual representation of room classes
 room_classes = ['bathroom', 'corridor', 'kitchen', 'livingroom', 'common_area', 'null']
-model = YOLO('models/best.onnx', task='detect')
-embedder = RoomEmbedderPipeline(device=device)
+
+# YOLO model
+model = YOLO(os.environ['YOLO_PT_PATH'], task='detect')
+
+embedder = RoomEmbedderPipeline(device=embedding_device)
+
 classifier = RoomClassifier.from_pretrained(
     'ummagumm-a/samolet-room-classifier', 
     use_auth_token=os.environ['HF_AUTH_TOKEN'],
-).to_device(device)
-# if torch.cuda.is_available():
-#     print("Transfering models to GPU...")
-#     classifier = classifier.cuda()
+).to_device(embedding_device)
 
 
-    
-def calculate_iou(range1, range2):
+def calculate_iou(range1: tuple[int, int], range2: tuple[int, int]) -> float:
+    """Given two ranges, calculate their intersection over union.
+
+    Args:
+        range1 (tuple[int, int]): The first range.
+        range2 (tuple[int, int]): The second range.
+
+    Returns:  
+        float: The intersection over union of the two ranges.
+    """   
     x, y = range1
     p, q = range2
     intersection = max(0, min(y, q) - max(x, p))
@@ -51,8 +71,16 @@ def calculate_iou(range1, range2):
     iou = intersection / union
     return iou
 
-def assign_to_rooms(rooms: list[int], outputs: list[YOLOv8Objects]):
+
+def assign_to_rooms(rooms: list[int], outputs: list[YOLOv8Objects]) -> list[YOLOv8Objects]:
     """Given a list of room ids and a list of YOLOv8Objects, assign each object to a room.
+
+    Args:
+        rooms (list[int]): A list of room ids.
+        outputs (list[YOLOv8Objects]): A list of YOLOv8Objects.
+
+    Returns:
+        list[YOLOv8Objects]: A list of YOLOv8Objects with room ids assigned.
     """
     
     spans = []
@@ -86,9 +114,24 @@ def assign_to_rooms(rooms: list[int], outputs: list[YOLOv8Objects]):
     return outputs
 
 
-pool = futures.ProcessPoolExecutor(max_workers=3)
+def _process_video_file_for_score_card(video_path: str) -> dict:
+    """(Internal function) Process a video file for score card.
 
-def _process_video_file_for_score_card(video_path):
+    Args:
+        video_path (str): Path to the video file.
+
+    Returns:
+        dict: A dictionary containing the statistics and the YOLOv8Objects.
+              in the following format:
+
+                ```python
+                {
+                        'stats': ScoreCardReport
+                        'output': list[YOLOv8Objects]
+                }
+                ```
+
+    """
     frames = split_video_by_frames(video_path, skip, return_arrays=True)
     logger.info(f"{video_path}, total frames: {len(frames)}")
     # run embeddings in parallel
@@ -105,6 +148,7 @@ def _process_video_file_for_score_card(video_path):
         vid_stride=skip, 
         verbose=False, 
         stream=True,
+        device=yolo_device
     )
 
     gc.collect()

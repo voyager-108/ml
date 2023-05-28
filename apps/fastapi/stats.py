@@ -43,7 +43,7 @@ class ScoreCardReport(BaseModel):
 
 
 
-def derive_statistics(outputs: list[YOLOv8Objects]):
+def derive_statistics(outputs: list[YOLOv8Objects]) -> ScoreCardReport:
     """Given a list of YOLOv8Objects, derive statistics for each object.
     """
     stats = ScoreCardReport()
