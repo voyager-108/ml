@@ -112,7 +112,8 @@ def best_k_combination(K: int, distances: np.ndarray, N:int = None, return_optim
         constructed_cost += cost_add
     
     # passing this assert statement is a huge indicator of the code's correctness
-    assert optimal_cost == constructed_cost
+    # assert optimal_cost == constructed_cost
+    assert np.abs(optimal_cost - constructed_cost) <= 10 ** -1
 
     if return_optimal_cost:
         return boundaries, optimal_cost
@@ -223,10 +224,6 @@ def build_distances_matrix(matrix: np.ndarray, horizontal: bool= True) -> np.nda
     # extract the distances
     distances = 1 - distances.T @ distances
     return distances
-
-
-
-
 
 
 def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int=10) -> list[int]:

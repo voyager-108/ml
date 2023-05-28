@@ -89,11 +89,29 @@ def test_best_combination(N: int):
     # as the time complexity of the brute force implementation can be approximated to n ^ k / k!
     # the value of n should not be too large.
     matrix = np.random.randint(0, 50, size=(N, N))
+    
     for k in range(2, min(7, N + 1)):
         comb1, c1 = best_k_combination_naive(k, matrix, return_optimal_cost=True)
         comb2, c2 = best_k_combination(k, matrix, return_optimal_cost=True)
         assert  c1 == c2 and comb1 == comb2
         print(f"CODE PASSSED TEST FOR k: {k}")
         print()
+
+
+
+def test_combination(trials: int):
+    for _ in range(trials):
+        N = np.random.randint(100, 2000)
+        matrix = np.random.randint(0, 50, size=(N, N))
+        for k in range(8, int(N / 2) + 1):
+            best_k_combination(k, matrix, return_optimal_cost=True)
+            print(f"Passed  the test for a matrix of size {N} with number of clusters: {k}")
+            print()
+
+
+if __name__ == '__main__':
+    # This code won't run if this file is imported.
+    test_combination(100)
+    
 
 

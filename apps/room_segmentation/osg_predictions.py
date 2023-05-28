@@ -60,7 +60,7 @@ def __combination_score(group: Union[np.ndarray, torch.tensor], boundaries: list
 
     if not isinstance(group, np.ndarray):
         # the input is supposed to be either a tensor or a numpy array
-        group = group.cpu().numpy().squeeze() # convert the tensor to numpy array and remove any extra dimensions
+        group = group.detach().cpu().numpy().squeeze() # convert the tensor to numpy array and remove any extra dimensions
     
     # make sure to proceed only with numpy arrays
     assert isinstance(group, (np.ndarray)), "THE INPUT MUST CONVERTED TO A NUMPY ARRAY"
@@ -199,11 +199,10 @@ def __combine(classifier_output: Union[torch.tensor, np.ndarray], boundaries: li
 
 def predict(embeddings: Union[np.ndarray, torch.Tensor], classifier_output: Union[torch.tensor, np.ndarray], logits: bool = True) -> list[int]:
     if not isinstance(embeddings, np.ndarray):
-        embeddings = embeddings.cpu().numpy().squeeze()
+        embeddings = embeddings.detach().cpu().numpy().squeeze()
 
     # determine the boundaries according to the OSG algorithm
     boundaries = osg(embeddings)
     return  __combine(classifier_output=classifier_output, boundaries=boundaries, logits=logits)
-
 
 
