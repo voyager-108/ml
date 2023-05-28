@@ -19,12 +19,14 @@ import gc
 
 # Number of frames to skip when splitting the video
 skip = 5
+USE_CUDA_EMBEDDINGS = 'EMBEDDINGS_CUDA' in os.environ and os.environ['EMBEDDINGS_CUDA'] == 'TRUE'
+USE_CUDA_YOLO = 'YOLO_CUDA' in os.environ and os.environ['YOLO_CUDA'] == 'TRUE'
 
 # Device used for calculating embeddings
-embedding_device = ('cuda:0' if torch.cuda.is_available() and os.environ['EMBEDDINGS_CUDA'] == 'TRUE' else 'cpu')
+embedding_device = ('cuda:0' if torch.cuda.is_available() and USE_CUDA_EMBEDDINGS else 'cpu')
 
 # Device used for running YOLO
-yolo_device = (0 if torch.cuda.is_available() and os.environ['YOLO_CUDA'] == 'TRUE' else 'cpu')
+yolo_device = (0 if torch.cuda.is_available() and USE_CUDA_YOLO else 'cpu')
 
 # Logging configuration
 logging.basicConfig(
@@ -32,8 +34,10 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
+
 # Server logger
 logger = logging.getLogger("ServerApplication")
+logger.addHandler(logging.StreamHandler())
 
 # Score card router
 score_card_router = APIRouter(
@@ -154,17 +158,13 @@ def _process_video_file_for_score_card(video_path: str) -> dict:
 
     gc.collect()
     torch.cuda.empty_cache()
+    
     logger.info(f"{video_path}, yolo finished")
-    # vectors = vectors[::skip]
-    # if len(frames) % skip != 0:
-    #     vectors = vectors[:-1]
     inputs = torch.Tensor(
         np.hstack((embeddings, np.array(vectors),))
     )
     
     logits = classifier(inputs)
-    # print("Embeddings:", embeddings.shape)
-    # print("Logits:", logits.shape)
     classification = predict(embeddings, logits.detach().cpu(), logits=True)
     logger.info(f"{video_path}, classfied")
     yolo_output = assign_to_rooms(classification, yolo_output)

@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import numpy as np
 import ultralytics
+import tqdm
 from pydantic import BaseModel
 
 
@@ -39,7 +40,7 @@ def analyze_video(
     objects = defaultdict(lambda: YOLOv8Objects())
     frames = []
 
-    for frame, result in enumerate(results):
+    for frame, result in tqdm.tqdm(enumerate(results)):
         classes = result.names
         vector = np.zeros(len(classes))
         for box in result.boxes:
