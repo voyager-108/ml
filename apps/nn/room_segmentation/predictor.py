@@ -13,6 +13,13 @@ from transformers import PreTrainedModel, PretrainedConfig
 from .embedding import example
 
 class RoomRawClassifier(nn.Module):
+    """
+    Класс-классификатор. Мы использовали рекуррентнутю нейронную сеть GRU
+    для вычисления признаков, зависящих от времени и последовательности.
+    Затем, обычный линейный слой применяем для классификации.
+    Из-за малого размера обучающей выборки есть опасность переобучения,
+    поэтому мы используем Droupout для регуляризации.
+    """
     def __init__(self, input_dim=371, hidden_dim=50,
                  num_layers=1, num_classes=6,
                  dropout_p=0.01):
@@ -28,6 +35,8 @@ class RoomRawClassifier(nn.Module):
 
         return x
 
+# Эти классы созданы для того, чтобы загрузить модель в репозиторий Huggingface, 
+# и в них ничего интересного нет. Просто обёртки.
 class RoomConfig(PretrainedConfig):
     model_type = 'gru'
     def __init__(self, input_dim=371, hidden_dim=50, num_layers=1,
@@ -57,11 +66,17 @@ class RoomClassifier(PreTrainedModel):
         return self.model(input)
 
     def pred_list(self, images: list[np.ndarray]):
+        """
+        В эту функцию подаётся список изображений и для каждого из них делается предсказание
+        """
         images_ = torch.tensor(np.array(images), dtype=torch.float32)
 
         return self(images_)
 
     def to_device(self, device):
+        """
+        Эта функция кладёт модель на определенный девайс
+        """
         self.config.device = device
         self.model = self.model.to(device)
 
