@@ -231,7 +231,7 @@ def build_distances_matrix(matrix: np.ndarray, horizontal: bool= True) -> np.nda
 
 
 
-def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int=10) -> list[int]:
+def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int=4) -> list[int]:
     """This is an end to end interface of the Optimal Sequential Grouping algorithm.
     As the process of finding the best number of clusters relies on SVD which in turns bahaves differently depending on the matrix magnitude
     We multiply the distances matrix with different coefficients leading to different number of clusters.
