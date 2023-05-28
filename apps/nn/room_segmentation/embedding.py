@@ -58,25 +58,25 @@ class RoomEmbedderPipeline(nn.Module):
             add_pooling_layer=False
         ).to(self.device)
 
-    def __call__(self, images: list[np.ndarray], batch_size: int = 7):
+    def __call__(self, images: list[np.ndarray], batch_size: int = 128):
         with torch.no_grad():
             # the following four lines produce embeddings for images
             inputs = self.processor(images=images, return_tensors="pt")
             # all tensors to a specific device: 'cpu' or 'cuda'
-            # inputs['pixel_values'] = inputs['pixel_values'].to(self.device)
-            preds = []
-            for i in range(0, len(images), batch_size):
-                inp = {}
-                inp['pixel_values'] = inputs['pixel_values'][i:i+batch_size].to(self.device)
-                out = self.model(**inp)
-                out = out.last_hidden_state.mean(axis=1).cpu()
-                preds.append(out)
+            inputs['pixel_values'] = inputs['pixel_values'].to(self.device)
+#            preds = []
+#            for i in range(0, len(images), batch_size):
+#                inp = {}
+#                inp['pixel_values'] = inputs['pixel_values'][i:i+batch_size].to(self.device)
+#                out = self.model(**inp)
+#                out = out.last_hidden_state.mean(axis=1).cpu()
+#                preds.append(out)
+#
+#            features = torch.vstack(preds)
 
-            features = torch.vstack(preds)
-
-#            outputs = self.model(batch_size=8, **inputs)
-#            last_hidden_states = outputs.last_hidden_state
-#            features = last_hidden_states.mean(axis=1)
+            outputs = self.model(**inputs)
+            last_hidden_states = outputs.last_hidden_state
+            features = last_hidden_states.mean(axis=1)
 
             # reduce the dimensionality of these embeddings
             features = self.dim_reducer(features=features.cpu())

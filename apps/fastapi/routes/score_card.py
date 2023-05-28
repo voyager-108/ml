@@ -31,7 +31,7 @@ score_card_router = APIRouter(
 )
 
 room_classes = ['bathroom', 'corridor', 'kitchen', 'livingroom', 'common_area', 'null']
-model = YOLO('models/best.onnx', task='detect')
+model = YOLO('models/best.pt', task='detect')
 embedder = RoomEmbedderPipeline(device=device)
 classifier = RoomClassifier.from_pretrained(
     'ummagumm-a/samolet-room-classifier', 
