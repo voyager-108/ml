@@ -36,11 +36,11 @@ def analyze_video(
         **kwargs,
     )
 
-    classes = results[0].names
     objects = defaultdict(lambda: YOLOv8Objects())
     frames = []
 
     for frame, result in enumerate(results):
+        classes = result.names
         vector = np.zeros(len(classes))
         for box in result.boxes:
             if box.id:

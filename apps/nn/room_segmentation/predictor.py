@@ -53,10 +53,11 @@ class RoomClassifier(PreTrainedModel):
                               .to(self.config.device)
 
     def forward(self, input):
+        input = input.to(self.config.device)
         return self.model(input)
 
     def pred_list(self, images: list[np.ndarray]):
-        images_ = torch.tensor(np.array(images), dtype=torch.float32).to(self.config.device)
+        images_ = torch.tensor(np.array(images), dtype=torch.float32)
 
         return self(images_)
 

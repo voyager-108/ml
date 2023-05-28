@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import hypercorn.asyncio as hypercorn
@@ -5,6 +6,9 @@ import hypercorn.asyncio as hypercorn
 from .routes.score_card import score_card_router
 
 # from ..nn.yolov8.fastapi.routes import router as yolov8_router, serve_yolo
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.getLogger().handlers.clear()
 
 app = FastAPI()
 
