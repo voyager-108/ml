@@ -75,7 +75,6 @@ if __name__ == "__main__":
 
     # Check docs for that in the `embedding` file
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    device = 'cpu'
     print("device:", device)
     data = example(device)
 
