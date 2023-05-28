@@ -14,8 +14,8 @@ RUN wget -O yolo.pt https://storage.yandexcloud.net/voyager-108/best.pt
 RUN mkdir /app/models
 RUN mv yolo.pt /app/models/yolo.pt
 
-ENV YOLO_CONFIG "/app/config/yolo/default.yaml"
-ENV YOLO_PT_PATH = "/app/models/yolo.pt"
+ENV YOLO_CONFIG /app/config/yolo/default.yaml
+ENV YOLO_PT_PATH /app/models/yolo.pt
 
 FROM python_base AS python_app
 
