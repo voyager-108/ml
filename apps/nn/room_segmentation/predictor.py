@@ -10,7 +10,7 @@ import torch.nn as nn
 
 from transformers import PreTrainedModel, PretrainedConfig
 
-from apps.room_segmentation.embedding import example
+from .embedding import example
 
 class RoomRawClassifier(nn.Module):
     def __init__(self, input_dim=371, hidden_dim=50,
@@ -53,22 +53,33 @@ class RoomClassifier(PreTrainedModel):
                               .to(self.config.device)
 
     def forward(self, input):
+        input = input.to(self.config.device)
         return self.model(input)
 
     def pred_list(self, images: list[np.ndarray]):
-        images_ = torch.tensor(np.array(images))
+        images_ = torch.tensor(np.array(images), dtype=torch.float32)
 
         return self(images_)
+
+    def to_device(self, device):
+        self.config.device = device
+        self.model = self.model.to(device)
+
+        return self
 
 
 if __name__ == "__main__":
 
     model = RoomClassifier.from_pretrained('ummagumm-a/samolet-room-classifier')
+    model = model.to_device('cuda')
 
     # Check docs for that in the `embedding` file
-    data = example()
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print("device:", device)
+    data = example(device)
 
     with torch.no_grad():
+        data = np.array([np.hstack((x, np.zeros(23, ))) for x in data])
         pred = model.pred_list(data)
 
         print(pred.shape)

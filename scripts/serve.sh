@@ -1,0 +1,1 @@
+hypercorn apps.fastapi.app:app --bind 0.0.0.0:8000 -w 8 

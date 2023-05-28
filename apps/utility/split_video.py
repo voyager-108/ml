@@ -2,12 +2,15 @@ import cv2
 import os
 import logging
 
+import numpy as np
+
 def split_video_by_frames(
         video_file_path: str, 
         take_each_n: int, 
-        output_collection: str,
-        verbose: bool
-):
+        output_collection: str = None,
+        verbose: bool = False,
+        return_arrays: bool = False,
+) -> None | list[np.ndarray]: 
     if verbose:
         logger = logging.getLogger("utility:split")
         logger.addHandler(
@@ -17,7 +20,8 @@ def split_video_by_frames(
     video = cv2.VideoCapture(video_file_path)
     
     # Create the output directory if it doesn't exist
-    os.makedirs(output_collection, exist_ok=True)
+    if output_collection:
+        os.makedirs(output_collection, exist_ok=True)
     
     # Get the total number of frames in the video
     total_frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -32,11 +36,11 @@ def split_video_by_frames(
     # Initialize variables
     frame_count = 0
     frame_num = 0
+    output_frames = []
     
     while True:
         # Read the next frame
         ret, frame = video.read()
-        
         # Break the loop if no frame is available
         if not ret:
             break
@@ -50,8 +54,12 @@ def split_video_by_frames(
             frame_num_str = str(frame_num).zfill(num_zeros)
                 
             # Save the frame to a file
-            output_file = f"{output_collection}/video__f{frame_num_str}.jpg"
-            cv2.imwrite(output_file, frame)
+            if not return_arrays:
+                output_file = f"{output_collection}/video__f{frame_num_str}.jpg"
+                cv2.imwrite(output_file, frame)
+
+            output_frames.append(np.array(frame))
+
             if verbose:
                 logger.info(f"File {output_file}. Frame {frame_count} --> {output_file}")
             # Increment the frame number
@@ -59,6 +67,10 @@ def split_video_by_frames(
     
     # Release the video capture
     video.release()
+
+    if return_arrays:
+        return output_frames
+
 
 
 if __name__ == "__main__":
