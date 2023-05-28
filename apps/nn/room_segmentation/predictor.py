@@ -56,8 +56,14 @@ class RoomClassifier(PreTrainedModel):
         input = input.to(self.config.device)
         return self.model(input)
 
-    def pred_list(self, images: list[np.ndarray]):
+    def pred_list(self, images: list[np.ndarray], batch_size: int = 7):
+        preds = []
         images_ = torch.tensor(np.array(images), dtype=torch.float32)
+
+        for i in range(0, len(images_), batch_size):
+            preds.append(self(images_[i:i+batch_size]))
+
+        preds = torch.vstack(preds)
 
         return self(images_)
 
@@ -75,7 +81,6 @@ if __name__ == "__main__":
 
     # Check docs for that in the `embedding` file
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    device = 'cpu'
     print("device:", device)
     data = example(device)
 
