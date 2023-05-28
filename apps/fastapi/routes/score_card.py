@@ -39,7 +39,7 @@ logging.basicConfig(
 logger = logging.getLogger("ServerApplication")
 streamHandler = logging.StreamHandler()
 streamHandler.setFormatter(logging.Formatter("%(asctime)s ::  %(message)s"))
-logger.setHandler(streamHandler)
+logger.addHandler(streamHandler)
 
 # Score card router
 score_card_router = APIRouter(
