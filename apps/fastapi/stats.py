@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 from ..nn.yolov8.score import YOLOv8Objects, analyze_video
+import numpy as np
+from _collections_abc import Sequence
 
 class ScoreCardReport(BaseModel):
     # https://docs.google.com/spreadsheets/d/1QT3j336EuLBRHXdh-p6GNt12al1fo9Lt/edit#gid=316097104
@@ -40,7 +42,7 @@ class ScoreCardReport(BaseModel):
     # commonAreasStartedCeiling: float | None  # no such class in terms of reference
     commonAreasFinishedCeiling: float | None
 
-
+    final_score: float | None
 
 
 def derive_statistics(outputs: list[YOLOv8Objects]) -> ScoreCardReport:
@@ -269,3 +271,73 @@ def derive_statistics(outputs: list[YOLOv8Objects]) -> ScoreCardReport:
     )
 
     stats.livingOrKitchenWindow = num_of_finished_windowsills / num_of_windows if num_of_windows > 0 else 0   
+
+    final_score = score(stats)
+    stats.final_score = float(final_score)
+
+    return stats
+
+
+def __score_non_common_area(stats: ScoreCardReport) -> float:
+    # the score for walls in non common areas
+    score_wall_non_common = int(stats.allButCommonFinishedWall + stats.allButCommonStartedWall + stats.allButCommonRawWall) == 0  
+    +  (4 / 7) * stats.allButCommonFinishedWall + (2 / 7) * (1 - stats.allButCommonStartedWall) + (1 / 7) * (1 - stats.allButCommonRawWall)
+    
+    # the score for the floor in non common areas
+    score_floor_non_common = int(stats.allButCommonFinishedFloor + stats.allButCommonIntermediateFloor + stats.allButCommonRawFloor) == 0  
+    +  (4 / 7) * stats.allButCommonFinishedFloor + (2 / 7) * (1 - stats.allButCommonIntermediateFloor) + (1 / 7) * (1 - stats.allButCommonRawFloor)
+    
+    # the score for the ceiling in non commons areas
+    score_ceiling_non_common = int(stats.allButCommonFinishedCeiling + stats.allButCommonRawCeiling == 0)  
+    +  (2 / 3) * stats.allButCommonFinishedCeiling +  (1 / 3) * (1 -stats.allButCommonRawCeiling)
+
+    # the score for the common area is the average for the values calculated above
+    score_non_common = np.mean([score_wall_non_common, score_floor_non_common, score_ceiling_non_common])
+
+    return float(score_non_common) # using np.mean return a numpy.float object
+
+
+def __score_common_area(stats: ScoreCardReport) -> float:
+    # the calculations are similar to those of the  common area
+    # score for wall in common area
+    common_score_wall = int(stats.commonAreasFinishedWall + stats.commonAreasStartedWall + stats.commonAreasRawWall) == 0  
+    +  (4 / 7) * stats.commonAreasFinishedWall + (2 / 7) *  (1 - stats.commonAreasStartedWall) + (1 / 7) *  (1 - stats.commonAreasRawWall)
+    
+    #score for floor in common area
+    common_score_floor = int(stats.commonAreasFinishedFloor + stats.commonAreasIntermediateFloor + stats.commonAreasRawFloor) == 0  
+    +  (4 / 7) * stats.commonAreasFinishedFloor + (2 / 7) *  (1 - stats.commonAreasIntermediateFloor) + (1 / 7) *  (1 - stats.commonAreasRawFloor)
+    
+    # score for ceiling in common area
+    common_score_ceiling = int(stats.commonAreasFinishedCeiling + stats.commonAreasRawCeiling) == 0  
+    +  (2 / 3) * stats.commonAreasFinishedCeiling + (1 / 3) *  (1 - stats.commonAreasRawCeiling)
+
+    # the score for the common area is the average for the values calculated above
+    score_common = np.mean([common_score_wall, common_score_ceiling, common_score_floor])
+
+    return float(score_common)
+
+
+def __score_bathroom(stats: ScoreCardReport) -> float:
+    return float(np.mean([stats.bathroomToiletBathtub + stats.bathroomToiletSeat + stats.bathroomToiletSink]))
+
+def __score_kitchen(stats: ScoreCardReport) -> float:
+    return float(np.mean([stats.livingOrKitchenFurniture, stats.livingOrKitchenRadiator, stats.livingOrKitchenWindow]))
+
+
+DEFAULT_WEIGHTS = [0.5, 0.25, 0.125, 0.125]
+
+def score(stats: ScoreCardReport, weights: Sequence = None, score_for_socket: float= 0.01, penalty_for_garbage: float = -0.02):
+
+    # set the weights to their default values if none were given
+    if weights is None:
+        weights = np.array(DEFAULT_WEIGHTS)
+    
+    intermediate_scores = np.array([[__score_non_common_area(stats)], [__score_common_area(stats)], [__score_kitchen(stats)], [__score_bathroom(stats)]])
+
+    # the initial score without considering sockets or garbage    
+    score = weights @ intermediate_scores
+
+    score += score_for_socket * stats.allSocketsAndSwitches + penalty_for_garbage * stats.allGarbage
+    
+    return min(1, max(score, 0))
+

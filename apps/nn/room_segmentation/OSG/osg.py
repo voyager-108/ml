@@ -231,7 +231,7 @@ def build_distances_matrix(matrix: np.ndarray, horizontal: bool= True) -> np.nda
 
 
 
-def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int=10) -> list[int]:
+def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int=4) -> list[int]:
     """This is an end to end interface of the Optimal Sequential Grouping algorithm.
     As the process of finding the best number of clusters relies on SVD which in turns bahaves differently depending on the matrix magnitude
     We multiply the distances matrix with different coefficients leading to different number of clusters.
@@ -248,7 +248,7 @@ def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int
     """
         
     # first step is to build the distances matrix
-    logger = logging.getLogger("ServerApplication").info('Building the distances matrix...')
+    logging.getLogger("ServerApplication").info('Building the distances matrix...')
     distances = build_distances_matrix(matrix, horizontal=horizontal)
     # extract the max maig
     max_magnitude = int(np.amax(np.abs(matrix)))
@@ -257,12 +257,14 @@ def osg(matrix: np.ndarray, horizontal:bool=True, debug:bool = False, trials:int
     
     best_cost, best_grouping = None, None 
 
-    logger = logging.getLogger("ServerApplication").info('Finding the best grouping...')
+    logging.getLogger("ServerApplication").info('Finding the best grouping...')
     for cte in np.linspace(1, max_magnitude, trials):
         # as norm of the matrix affects SVD, let's multiply by some constant
         # find the best_k
+        logging.getLogger("ServerApplication").info('Finding the best K...')
         best_k = find_best_k(cte * distances, debug=debug)
         # find the optimal grouping
+        logging.getLogger("ServerApplication").info('Finding the best K combination...')
         grouping_boundaries, cost = best_k_combination(best_k, distances, return_optimal_cost=True)
         if best_cost is None or cost < best_cost:
             best_cost = cost
