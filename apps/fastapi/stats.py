@@ -326,7 +326,7 @@ def __score_kitchen(stats: ScoreCardReport) -> float:
 
 DEFAULT_WEIGHTS = [0.5, 0.25, 0.125, 0.125]
 
-def score(stats: ScoreCardReport, weights: Sequence, score_for_socket: float= 0.01, penalty_for_garbage: float = -0.02):
+def score(stats: ScoreCardReport, weights: Sequence = None, score_for_socket: float= 0.01, penalty_for_garbage: float = -0.02):
 
     # set the weights to their default values if none were given
     if weights is None:
