@@ -1,4 +1,5 @@
 import os
+import uuid
 import numpy as np
 from ...utility.split_video import split_video_by_frames
 from ...nn.yolov8.score import YOLOv8Objects, analyze_video
@@ -6,6 +7,9 @@ from ...nn.room_segmentation.embedding import RoomEmbedderPipeline
 from ...nn.room_segmentation.predictor import RoomClassifier
 from ...nn.room_segmentation.osg_predictions import predict
 from ..stats import derive_statistics
+from typing import Annotated
+from fastapi import Body
+import apps.nn as nn
 
 from ultralytics import YOLO
 from fastapi import APIRouter, File, UploadFile
@@ -52,15 +56,7 @@ room_classes = ['bathroom', 'corridor', 'kitchen', 'livingroom', 'common_area', 
 # YOLO model
 model = YOLO(os.environ['YOLO_PT_PATH'], task='detect')
 
-embedder = RoomEmbedderPipeline(device=embedding_device)
-embedder.model.eval()
 
-classifier = RoomClassifier.from_pretrained(
-    'ummagumm-a/samolet-room-classifier', 
-    use_auth_token=os.environ['HF_AUTH_TOKEN'],
-).to_device(embedding_device)
-
-classifier.eval()
 
 
 def calculate_iou(range1: tuple[int, int], range2: tuple[int, int]) -> float:
@@ -186,7 +182,72 @@ def process_video_for_score_card(video: UploadFile = File(...)):
     with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
         shutil.copyfileobj(video.file, video_temp_file)
         return _process_video_file_for_score_card(video_temp_file.name)
-                                          
+    
+
+
+
+
+@score_card_router.post('/v2/video')
+def process_video_for_score_card_v2(
+    video: UploadFile = File(...), 
+    embeddings: Annotated[str, Body(embed=True)] = None,
+    yolo_results: Annotated[str, Body(embed=True)] = None,
+):
+    video_format = video.filename.split('.')[-1]
+    with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
+        shutil.copyfileobj(video.file, video_temp_file)
+        video_path = video_temp_file.name
+        logger.info(f"{video_path}, total frames: {len(frames)}")
+        frames = split_video_by_frames(video_path, skip, return_arrays=True)
+    
+        embeddings_ready = False
+        if embeddings:
+            try:
+                embeddings_id = embeddings
+                embeddings_vector = nn.vector_store.get(embeddings)     
+                embeddings_ready = True
+            except: 
+                embeddings_vector = None
+    
+        if not embeddings or not embeddings_vector:
+            embeddings_vector = nn.run_embedder(frames)
+            embeddings_id = uuid.uuid4().hex
+            embeddings_vector.add_done_callback(lambda f: nn.vector_store.put(embeddings_id, f.result()))
+
+        yolo_ready = False
+
+        if yolo_results:
+            try:
+                yolo_id = yolo_results
+                yolo_outputs = nn.vector_store.get(yolo_results)
+                yolo_ready = True
+            except:
+                yolo_outputs = None
+
+        if not yolo_results or not yolo_outputs:
+            yolo_outputs = nn.run_yolo(video_path)
+            yolo_id = uuid.uuid4().hex
+            yolo_outputs.add_done_callback(lambda f: nn.vector_store.put(yolo_id, f.result()))
+
+
+        logits = nn.run_classifier(
+            embeddings_vector.result() if not embeddings_ready else embeddings_vector, 
+            yolo_outputs.result() if not yolo_ready else yolo_outputs,
+        )
+
+        embeddings_vector = embeddings_vector.result() if not embeddings_ready else embeddings_vector
+        classification = nn.run_classifier(embeddings_vector, logits.result(), logits=True)
+        yolo_outputs = assign_to_rooms(classification, yolo_outputs.result() if not yolo_ready else yolo_outputs)
+
+    return {
+        'stats': derive_statistics(list(yolo_outputs.values())),
+        'output': yolo_outputs,
+        'embeddings': embeddings_id,
+        'yolo': yolo_id,
+    }
+    
+
+
 
 
 if __name__ == "__main__":

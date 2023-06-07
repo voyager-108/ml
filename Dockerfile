@@ -10,6 +10,8 @@ WORKDIR /app/
 RUN poetry install --no-dev --no-interaction --no-ansi
 RUN pip uninstall -y torch torchvision 
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# This can only be installed on Linux
+RUN pip install lap 
 RUN wget -O yolo.pt https://storage.yandexcloud.net/voyager-108/best.pt 
 RUN mkdir /app/models
 RUN mv yolo.pt /app/models/yolo.pt

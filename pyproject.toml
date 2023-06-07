@@ -7,8 +7,8 @@ readme = "README.md"
 packages = []
 
 [tool.poetry.dependencies]
-torch = { version = ">=2.0.1", source = "torch_cuda" }
-torchvision = { version = ">=0.15.2", source = "torch_cuda" }
+torch = { version = ">=2.0.1" }
+torchvision = { version = ">=0.15.2" }
 python = ">=3.10"
 opencv-python = "^4.7.0.72"
 rich = "^13.3.5"
@@ -31,11 +31,6 @@ datasets = ">=2.12.0"
 
 
 scikit-learn = "^1.2.2"
-
-[[tool.poetry.source]]
-name = "torch_cuda"
-url = "https://download.pytorch.org/whl/cu117"
-priority = "explicit"
 
 [build-system]
 requires = ["poetry-core"]
