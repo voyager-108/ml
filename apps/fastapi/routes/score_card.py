@@ -119,80 +119,13 @@ def assign_to_rooms(rooms: list[int], outputs: dict[Any, list[YOLOv8Objects]]) -
     return outputs
 
 
-def _process_video_file_for_score_card(video_path: str) -> dict:
-    """(Internal function) Process a video file for score card.
-
-    Args:
-        video_path (str): Path to the video file.
-
-    Returns:
-        dict: A dictionary containing the statistics and the YOLOv8Objects.
-              in the following format:
-
-                ```python
-                {
-                        'stats': ScoreCardReport
-                        'output': list[YOLOv8Objects]
-                }
-                ```
-
-    """
-    frames = split_video_by_frames(video_path, skip, return_arrays=True)
-    logger.info(f"{video_path}, total frames: {len(frames)}")
-    # run embeddings in parallel
-    # embeddings = pool.submit(worker, 'embeddings', frames)
-    with torch.no_grad(): 
-        embeddings = embedder(frames)
-
-    gc.collect()
-    torch.cuda.empty_cache()
-
-    logger.info(f"{video_path}, embeddings: {embeddings.shape}")
-    yolo_output, vectors = analyze_video(
-        model, 
-        video_path, 
-        vid_stride=skip, 
-        verbose=False, 
-        stream=True,
-        device=yolo_device
-    )
-    
-    logger.info(f"{video_path}, yolo finished")
-    inputs = torch.Tensor(
-        np.hstack((embeddings, np.array(vectors),))
-    )
-    logger.info(f"{video_path}, yolo data prepared")
-    with torch.no_grad():
-        logits = classifier(inputs).cpu()
-        logger.info(f"{video_path}, logits: {logits.shape}")
-    classification = predict(embeddings, logits, logits=True)
-    logger.info(f"{video_path}, classfied")
-    yolo_output = assign_to_rooms(classification, yolo_output)
-    logger.info(f"{video_path}, finished")
-
-    return {
-        'stats': derive_statistics(list(yolo_output.values())),
-        'output': yolo_output,
-    }
-
-
-@score_card_router.post('/video')
-def process_video_for_score_card(video: UploadFile = File(...)):
-    video_format = video.filename.split('.')[-1]
-    with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
-        shutil.copyfileobj(video.file, video_temp_file)
-        return _process_video_file_for_score_card(video_temp_file.name)
-    
-
-
-
 
 @score_card_router.post('/v2/video')
 def process_video_for_score_card_v2(
     video: UploadFile = File(...), 
-    embeddings: Annotated[str | list[str], Query()] = None,
-    yolo_results: Annotated[str | list[str], Query()] = None,
-    isLast: Annotated[bool, Query()] = False,
+    embeddings: str | list[str] = None,
+    yolo_results: str | list[str] = None,
+    isLast: str | list[str] = False,
 ):
     video_format = video.filename.split('.')[-1]
     with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
