@@ -64,5 +64,5 @@ def analyze_video(
             vector[int(box.cls)] += 1
         frames.append(vector)
 
-    return objects, frames
+    return dict(**objects), frames
 
