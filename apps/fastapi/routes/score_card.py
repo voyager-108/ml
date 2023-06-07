@@ -183,11 +183,11 @@ def process_video_for_score_card_v2(
             classification = nn.predict(embeddings_vector, logits, logits=True)
             logger.info(f"[v2] task=predict, completed ( embeddings.shape={embeddings_vector.shape}, logits.shape={logits.shape}, len(classification)={len(classification)} )")
             
-            logger.info(f"[v2] task=assign_to_rooms, run ( len(classification)={len(classification)}, yolo_outputs.shape={yolo_outputs.shape} )")
+            logger.info(f"[v2] task=assign_to_rooms, run ( len(classification)={len(classification)}, yolo_outputs.shape={yolo_vectors.shape} )")
             yolo_outputs = assign_to_rooms(classification, yolo_outputs)
-            logger.info(f"[v2] task=assign_to_rooms, completed ( len(classification)={len(classification)}, yolo_outputs.shape={yolo_outputs.shape} )")
+            logger.info(f"[v2] task=assign_to_rooms, completed ( len(classification)={len(classification)}, yolo_outputs.shape={yolo_vectors.shape} )")
 
-            logger.info(f"[v2] finished ( embeddings.shape={embeddings_vector.shape}, yolo_vectors.shape={yolo_vectors.shape}, logits.shape={logits.shape}, len(classification)={len(classification)}, yolo_outputs.shape={yolo_outputs.shape} )"
+            logger.info(f"[v2] finished ( embeddings.shape={embeddings_vector.shape}, yolo_vectors.shape={yolo_vectors.shape}, logits.shape={logits.shape}, len(classification)={len(classification)}, yolo_outputs.shape={yolo_vectors.shape} )"
                         f" ( embeddings_id={embeddings_id}, yolo_id={yolo_id}")
 
             return {
