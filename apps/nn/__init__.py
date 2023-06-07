@@ -30,15 +30,9 @@ classifier = RoomClassifier.from_pretrained(
     device=EMBEDDING_DEVICE,
 ).to_device(EMBEDDING_DEVICE).eval()
 
-logger = logging.getLogger("EmbeddingsWorker")
-logger.setLevel(logging.INFO)
-streamHandler = logging.StreamHandler()
-logger.addHandler(streamHandler)
-
 
 def _run_yolo(source: str):
     global yolo, logger
-    logger.info(f'Running YOLO on {source}')
     return analyze_video(
         yolo,
         source,
@@ -55,7 +49,6 @@ def run_yolo(source: str):
 
 def _run_embedder(frames: list[np.ndarray]):
     global embedder, logger
-    logger.info(f'Running Embedder on {len(frames)} frames')
     return embedder(frames)
 
 
@@ -68,7 +61,6 @@ def _run_classifier(embeddings: torch.Tensor, yolo_vectors: list[np.ndarray]):
         np.hstack((embeddings, np.array(yolo_vectors),))
     )
     global classifier, logger
-    logger.info(f'Running Classifier on {inputs.shape[0]} embeddings')
     return classifier(embeddings, inputs)
 
 

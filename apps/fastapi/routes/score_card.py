@@ -158,6 +158,7 @@ def process_video_for_score_card_v2(
         else:
             logger.info(f"[v2] task=yolo, run ( frames={len(frames)} )")
             yolo_outputs, yolo_vectors = nn.run_yolo(video_path)
+            yolo_vectors = np.array(yolo_vectors)
             logger.info(f"[v2] task=yolo, completed ( frames={len(frames)} , yolo_vectors.shape={yolo_vectors.shape} )")
         
 
