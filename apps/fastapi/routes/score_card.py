@@ -40,10 +40,12 @@ logging.basicConfig(
 
 
 # Server logger
-logger = logging.getLogger("ServerApplication")
-streamHandler = logging.StreamHandler()
-streamHandler.setFormatter(logging.Formatter("%(asctime)s ::  %(message)s"))
-logger.addHandler(streamHandler)
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+if not logger.hasHandlers():
+    streamHandler = logging.StreamHandler()
+    streamHandler.setFormatter(logging.Formatter("%(asctime)s :: %(message)s"))
+    logger.addHandler(streamHandler)
 
 # Score card router
 score_card_router = APIRouter(
@@ -122,28 +124,28 @@ def assign_to_rooms(rooms: list[int], outputs: dict[Any, list[YOLOv8Objects]]) -
 
 @score_card_router.post('/v2/video')
 def process_video_for_score_card_v2(
+    embeddings: list[str] = None,
+    yolo_results: list[str] = None,
+    isLast: list[str] = False,
     video: UploadFile = File(...), 
-    embeddings: str | list[str] = None,
-    yolo_results: str | list[str] = None,
-    isLast: str | list[str] = False,
 ):
     video_format = video.filename.split('.')[-1]
     with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
         shutil.copyfileobj(video.file, video_temp_file)
         video_path = video_temp_file.name
         frames = split_video_by_frames(video_path, skip, return_arrays=True)
-        logger.info(f"{video_path}, total frames: {len(frames)}")
-    
-        if isinstance(embeddings, str):
-            embeddings = [embeddings]
-        
-        if isinstance(yolo_results, str):
-            yolo_results = [yolo_results]
+        logger.info(f"[v2] video={video.filename}, temp={video_temp_file.name}, frames={len(frames)}")
 
         if isinstance(embeddings, list):
             embeddings = list(map(nn.vector_store.get, embeddings))
             embeddings = np.hstack(embeddings)
-            logger.info(f"stacked embeddings: {embeddings.shape}")
+            logger.info(f"[v2] inject=embeddings, embeddings.shape={embeddings.shape}")
+            embeddings_vector = embeddings      
+        else:
+            logger.info(f"[v2] task=embedder, run ( frames={len(frames)} )")
+            embeddings_vector = nn.run_embedder(frames)     
+            logger.info(f"[v2] task=embedder, completed ( frames={len(frames)} , embeddings.shape={embeddings_vector.shape} )")
+
 
         if isinstance(yolo_results, list):
             yolo_results = list(map(nn.vector_store.get, yolo_results))
@@ -151,25 +153,42 @@ def process_video_for_score_card_v2(
             _yolo_results_vectors = map(lambda x: x[1], yolo_results)
             yolo_results_outputs = sum(_yolo_results_outputs, [])
             yolo_results_vectors = np.hstack(_yolo_results_vectors)
-            logger.info(f"stacked yolo results: {yolo_results_vectors.shape}")
-            
             yolo_results = (yolo_results_outputs, yolo_results_vectors)
+            logger.info(f"[v2] inject=yolo, yolo_results.shape={yolo_results_vectors.shape}")
+            yolo_outputs, yolo_vectors = yolo_results
+        else:
+            logger.info(f"[v2] task=yolo, run ( frames={len(frames)} )")
+            yolo_outputs, yolo_vectors = nn.run_yolo(video_path)
+            logger.info(f"[v2] task=yolo, completed ( frames={len(frames)} , yolo_vectors.shape={yolo_vectors.shape} )")
         
-        embeddings_vector = embeddings or nn.run_embedder(frames)     
+
         if not embeddings:
             embeddings_id = uuid.uuid4().hex
             nn.vector_store.put(embeddings_id, embeddings_vector)
+            logger.info(f"[v2] store=embeddings, embeddings_id={embeddings_id}, embeddings.shape={embeddings_vector.shape}")
 
-        yolo_outputs, yolo_vectors = yolo_results or nn.run_yolo(video_path)
+
         if not yolo_results:
             yolo_id = uuid.uuid4().hex
             nn.vector_store.put(yolo_id, (yolo_outputs, yolo_vectors))
+            logger.info(f"[v2] store=yolo, yolo_id={yolo_id}, yolo_vectors.shape={yolo_vectors.shape}")
         
 
         if isLast:
+            logger.info(f"[v2] isLast=true => task=classifier, run ( embeddings.shape={embeddings_vector.shape}, yolo_vectors.shape={yolo_vectors.shape} )")
             logits = nn.run_classifier(embeddings_vector, yolo_vectors)
+            logger.info(f"[v2] task=classifier, completed ( embeddings.shape={embeddings_vector.shape}, yolo_vectors.shape={yolo_vectors.shape}, logits.shape={logits.shape} )")
+            
+            logger.info(f"[v2] task=predict, run ( embeddings.shape={embeddings_vector.shape}, logits.shape={logits.shape} )")
             classification = nn.predict(embeddings_vector, logits, logits=True)
+            logger.info(f"[v2] task=predict, completed ( embeddings.shape={embeddings_vector.shape}, logits.shape={logits.shape}, classification.shape={classification.shape} )")
+            
+            logger.info(f"[v2] task=assign_to_rooms, run ( classification.shape={classification.shape}, yolo_outputs.shape={yolo_outputs.shape} )")
             yolo_outputs = assign_to_rooms(classification, yolo_outputs)
+            logger.info(f"[v2] task=assign_to_rooms, completed ( classification.shape={classification.shape}, yolo_outputs.shape={yolo_outputs.shape} )")
+
+            logger.info(f"[v2] finished ( embeddings.shape={embeddings_vector.shape}, yolo_vectors.shape={yolo_vectors.shape}, logits.shape={logits.shape}, classification.shape={classification.shape}, yolo_outputs.shape={yolo_outputs.shape} )"
+                        f" ( embeddings_id={embeddings_id}, yolo_id={yolo_id}")
 
             return {
                 'stats': derive_statistics(list(yolo_outputs.values())),
@@ -179,6 +198,9 @@ def process_video_for_score_card_v2(
             }
         
         else:
+            logger.info(f"[v2] isLast=false => response = ( embeddings.shape={embeddings_vector.shape}, yolo_vectors.shape={yolo_vectors.shape} )"
+                        f" ( embeddings_id={embeddings_id}, yolo_id={yolo_id}")
+
             return {
                 'embeddings': embeddings_id,
                 'yolo': yolo_id,
