@@ -61,13 +61,16 @@ def _run_classifier(embeddings: torch.Tensor, yolo_vectors: list[np.ndarray]):
         np.hstack((embeddings, np.array(yolo_vectors),))
     )
     global classifier, logger
-    return classifier(inputs)
+    with torch.no_grad():
+        return classifier(inputs)
 
 
 def run_classifier(embeddings: torch.Tensor, yolo_vectors: list[np.ndarray]):
-    return _run_classifier(embeddings, yolo_vectors)
+    with torch.no_grad():
+        return _run_classifier(embeddings, yolo_vectors)
 
 
 def run_predict(embeddings, classifier_output, logits):
-    return predict(embeddings, classifier_output, logits)
+    with torch.no_grad():
+        return predict(embeddings, classifier_output, logits)
 
