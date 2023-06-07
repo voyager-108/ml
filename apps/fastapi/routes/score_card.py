@@ -40,12 +40,11 @@ logging.basicConfig(
 
 
 # Server logger
-logger = logging.getLogger()
+logger = logging.getLogger('server')
 logger.setLevel(logging.INFO)
-if not logger.hasHandlers():
-    streamHandler = logging.StreamHandler()
-    streamHandler.setFormatter(logging.Formatter("%(asctime)s :: %(message)s"))
-    logger.addHandler(streamHandler)
+streamHandler = logging.StreamHandler()
+streamHandler.setFormatter(logging.Formatter("%(asctime)s :: %(message)s"))
+logger.addHandler(streamHandler)
 
 # Score card router
 score_card_router = APIRouter(
@@ -136,7 +135,7 @@ def process_video_for_score_card_v2(
         frames = split_video_by_frames(video_path, skip, return_arrays=True)
         logger.info(f"[v2] video={video.filename}, temp={video_temp_file.name}, frames={len(frames)}")
 
-        if isinstance(embeddings, list):
+        if embeddings:
             embeddings = list(map(nn.vector_store.get, embeddings))
             embeddings = np.hstack(embeddings)
             logger.info(f"[v2] inject=embeddings, embeddings.shape={embeddings.shape}")
@@ -147,7 +146,7 @@ def process_video_for_score_card_v2(
             logger.info(f"[v2] task=embedder, completed ( frames={len(frames)} , embeddings.shape={embeddings_vector.shape} )")
 
 
-        if isinstance(yolo_results, list):
+        if yolo_results:
             yolo_results = list(map(nn.vector_store.get, yolo_results))
             _yolo_results_outputs = map(lambda x: x[0], yolo_results)
             _yolo_results_vectors = map(lambda x: x[1], yolo_results)
