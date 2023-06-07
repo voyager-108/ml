@@ -61,7 +61,7 @@ def _run_classifier(embeddings: torch.Tensor, yolo_vectors: list[np.ndarray]):
         np.hstack((embeddings, np.array(yolo_vectors),))
     )
     global classifier, logger
-    return classifier(embeddings, inputs)
+    return classifier(inputs)
 
 
 def run_classifier(embeddings: torch.Tensor, yolo_vectors: list[np.ndarray]):
