@@ -8,7 +8,7 @@ from ...nn.room_segmentation.predictor import RoomClassifier
 from ...nn.room_segmentation.osg_predictions import predict
 from ..stats import derive_statistics
 from typing import Annotated, Any
-from fastapi import Body
+from fastapi import Query
 import apps.nn as nn
 
 from ultralytics import YOLO
@@ -190,9 +190,9 @@ def process_video_for_score_card(video: UploadFile = File(...)):
 @score_card_router.post('/v2/video')
 def process_video_for_score_card_v2(
     video: UploadFile = File(...), 
-    embeddings: Annotated[str | list[str], Body(embed=True)] = None,
-    yolo_results: Annotated[str | list[str], Body(embed=True)] = None,
-    isLast: Annotated[bool, Body(embed=True)] = False,
+    embeddings: Annotated[str | list[str], Query()] = None,
+    yolo_results: Annotated[str | list[str], Query()] = None,
+    isLast: Annotated[bool, Query()] = False,
 ):
     video_format = video.filename.split('.')[-1]
     with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
@@ -201,6 +201,12 @@ def process_video_for_score_card_v2(
         frames = split_video_by_frames(video_path, skip, return_arrays=True)
         logger.info(f"{video_path}, total frames: {len(frames)}")
     
+        if isinstance(embeddings, str):
+            embeddings = [embeddings]
+        
+        if isinstance(yolo_results, str):
+            yolo_results = [yolo_results]
+
         if isinstance(embeddings, list):
             embeddings = list(map(nn.vector_store.get, embeddings))
             embeddings = np.hstack(embeddings)
