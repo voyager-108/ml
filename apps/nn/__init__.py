@@ -7,6 +7,7 @@ import torch
 from ultralytics import YOLO
 from .room_segmentation.embedding import RoomEmbedderPipeline
 from .room_segmentation.predictor import RoomClassifier
+from .room_segmentation.osg_predictions import predict
 from .yolov8.score import analyze_video
 import signal
 from ..vector.yandex import YandexS3VectorStore
@@ -73,4 +74,8 @@ def _run_classifier(embeddings: torch.Tensor, yolo_vectors: list[np.ndarray]):
 
 def run_classifier(embeddings: torch.Tensor, yolo_vectors: list[np.ndarray]):
     return _run_classifier(embeddings, yolo_vectors)
+
+
+def run_predict(embeddings, classifier_output, logits):
+    return predict(embeddings, classifier_output, logits)
 

@@ -7,7 +7,7 @@ from ...nn.room_segmentation.embedding import RoomEmbedderPipeline
 from ...nn.room_segmentation.predictor import RoomClassifier
 from ...nn.room_segmentation.osg_predictions import predict
 from ..stats import derive_statistics
-from typing import Annotated
+from typing import Annotated, Any
 from fastapi import Body
 import apps.nn as nn
 
@@ -77,7 +77,7 @@ def calculate_iou(range1: tuple[int, int], range2: tuple[int, int]) -> float:
     return iou
 
 
-def assign_to_rooms(rooms: list[int], outputs: list[YOLOv8Objects]) -> list[YOLOv8Objects]:
+def assign_to_rooms(rooms: list[int], outputs: dict[Any, list[YOLOv8Objects]]) -> list[YOLOv8Objects]:
     """Given a list of room ids and a list of YOLOv8Objects, assign each object to a room.
 
     Args:
@@ -190,62 +190,61 @@ def process_video_for_score_card(video: UploadFile = File(...)):
 @score_card_router.post('/v2/video')
 def process_video_for_score_card_v2(
     video: UploadFile = File(...), 
-    embeddings: Annotated[str, Body(embed=True)] = None,
-    yolo_results: Annotated[str, Body(embed=True)] = None,
+    embeddings: Annotated[str | list[str], Body(embed=True)] = None,
+    yolo_results: Annotated[str | list[str], Body(embed=True)] = None,
+    isLast: Annotated[bool, Body(embed=True)] = False,
 ):
     video_format = video.filename.split('.')[-1]
     with tempfile.NamedTemporaryFile(prefix=video.filename, suffix=f'.{video_format.lower()}') as video_temp_file:
         shutil.copyfileobj(video.file, video_temp_file)
         video_path = video_temp_file.name
-        logger.info(f"{video_path}, total frames: {len(frames)}")
         frames = split_video_by_frames(video_path, skip, return_arrays=True)
+        logger.info(f"{video_path}, total frames: {len(frames)}")
     
-        embeddings_ready = False
-        if embeddings:
-            try:
-                embeddings_id = embeddings
-                embeddings_vector = nn.vector_store.get(embeddings)     
-                embeddings_ready = True
-            except: 
-                embeddings_vector = None
-    
-        if not embeddings or not embeddings_vector:
-            embeddings_vector = nn.run_embedder(frames)
+        if isinstance(embeddings, list):
+            embeddings = list(map(nn.vector_store.get, embeddings))
+            embeddings = np.hstack(embeddings)
+            logger.info(f"stacked embeddings: {embeddings.shape}")
+
+        if isinstance(yolo_results, list):
+            yolo_results = list(map(nn.vector_store.get, yolo_results))
+            _yolo_results_outputs = map(lambda x: x[0], yolo_results)
+            _yolo_results_vectors = map(lambda x: x[1], yolo_results)
+            yolo_results_outputs = sum(_yolo_results_outputs, [])
+            yolo_results_vectors = np.hstack(_yolo_results_vectors)
+            logger.info(f"stacked yolo results: {yolo_results_vectors.shape}")
+            
+            yolo_results = (yolo_results_outputs, yolo_results_vectors)
+        
+        embeddings_vector = embeddings or nn.run_embedder(frames)     
+        if not embeddings:
             embeddings_id = uuid.uuid4().hex
-            embeddings_vector.add_done_callback(lambda f: nn.vector_store.put(embeddings_id, f.result()))
+            nn.vector_store.put(embeddings_id, embeddings_vector)
 
-        yolo_ready = False
-
-        if yolo_results:
-            try:
-                yolo_id = yolo_results
-                yolo_outputs = nn.vector_store.get(yolo_results)
-                yolo_ready = True
-            except:
-                yolo_outputs = None
-
-        if not yolo_results or not yolo_outputs:
-            yolo_outputs = nn.run_yolo(video_path)
+        yolo_outputs, yolo_vectors = yolo_results or nn.run_yolo(video_path)
+        if not yolo_results:
             yolo_id = uuid.uuid4().hex
-            yolo_outputs.add_done_callback(lambda f: nn.vector_store.put(yolo_id, f.result()))
+            nn.vector_store.put(yolo_id, (yolo_outputs, yolo_vectors))
+        
 
+        if isLast:
+            logits = nn.run_classifier(embeddings_vector, yolo_vectors)
+            classification = nn.predict(embeddings_vector, logits, logits=True)
+            yolo_outputs = assign_to_rooms(classification, yolo_outputs)
 
-        logits = nn.run_classifier(
-            embeddings_vector.result() if not embeddings_ready else embeddings_vector, 
-            yolo_outputs.result() if not yolo_ready else yolo_outputs,
-        )
-
-        embeddings_vector = embeddings_vector.result() if not embeddings_ready else embeddings_vector
-        classification = nn.run_classifier(embeddings_vector, logits.result(), logits=True)
-        yolo_outputs = assign_to_rooms(classification, yolo_outputs.result() if not yolo_ready else yolo_outputs)
-
-    return {
-        'stats': derive_statistics(list(yolo_outputs.values())),
-        'output': yolo_outputs,
-        'embeddings': embeddings_id,
-        'yolo': yolo_id,
-    }
-    
+            return {
+                'stats': derive_statistics(list(yolo_outputs.values())),
+                'output': yolo_outputs,
+                'embeddings': embeddings_id,
+                'yolo': yolo_id,
+            }
+        
+        else:
+            return {
+                'embeddings': embeddings_id,
+                'yolo': yolo_id,
+            }
+            
 
 
 
