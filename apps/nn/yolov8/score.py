@@ -29,14 +29,12 @@ def analyze_video(
         input_stream: str,
         *args,
         **kwargs
-):
-    results = model.track(
-        input_stream,
-        *args,
-        tracker=os.path.join(os.path.dirname(__file__), 'trackers', 'tracker.yaml'),
-        **kwargs,
-    )
+) -> tuple[dict[int, YOLOv8Objects], list[np.ndarray]]:
+    results = track_video(model, input_stream, *args, **kwargs)
+    return postprocess_results(results)
 
+
+def postprocess_results(results):
     objects = defaultdict(lambda: YOLOv8Objects())
     frames = []
 
@@ -65,4 +63,21 @@ def analyze_video(
         frames.append(vector)
 
     return dict(objects), frames
+
+
+def predict_video(model, input_stream, *args, **kwargs):
+    return model.predict(
+        input_stream,
+        *args,
+        **kwargs,
+    )
+
+
+def track_video(model, input_stream, *args, **kwargs):
+    return model.track(
+        input_stream,
+        *args,
+        tracker=os.path.join(os.path.dirname(__file__), 'trackers', 'tracker.yaml'),
+        **kwargs,
+    )
 
