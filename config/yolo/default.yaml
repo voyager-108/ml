@@ -1,3 +1,0 @@
-pt_path: ./models/1200.pt
-gpu: True
-cpu: 1

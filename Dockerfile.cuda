@@ -10,6 +10,7 @@ WORKDIR /app/
 RUN poetry install --no-dev --no-interaction --no-ansi
 RUN pip uninstall -y torch torchvision 
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cu117
+RUN pip install lap 
 RUN wget -O yolo.pt https://storage.yandexcloud.net/voyager-108/best.pt 
 RUN mkdir /app/models
 RUN mv yolo.pt /app/models/yolo.pt
@@ -17,7 +18,7 @@ RUN mv yolo.pt /app/models/yolo.pt
 ENV YOLO_CONFIG /app/config/yolo/default.yaml
 ENV YOLO_PT_PATH /app/models/yolo.pt
 ENV YOLO_CUDA = "TRUE"
-# ENV EMBEDDINGS_CUDA = "TRUE" # set if you have enought GPU memory (~20BG)
+# ENV EMBEDDINGS_CUDA = "TRUE" # set if you have enough GPU memory (~20BG)
 
 FROM python_base AS python_app
 

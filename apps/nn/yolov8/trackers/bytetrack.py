@@ -1,8 +1,8 @@
-from ultralytics.tracker import BYTETracker
-import yaml
 import os
 import torch
+import yaml
 from argparse import Namespace
+from ultralytics.tracker import BYTETracker
 
 
 def embed_tracking_into_results(yolo_results: list[list], fps=30) -> list[list]:
@@ -28,7 +28,7 @@ def embed_tracking_into_results(yolo_results: list[list], fps=30) -> list[list]:
     # Loading configuration from the same directory
     # The configuration follows the one provided in the `ultralytics` package
     cfg : dict= yaml.load(open(os.path.join(os.path.dirname(__file__), 'tracker.yaml'), 'r'), Loader=yaml.Loader)
-    cfg.pop('tracker_type')
+    cfg.pop('tracker_type') # Compatibility with the YOLO.track
 
     # BYTETracker accepts an object that
     # provides a way to access its keys as attributes
@@ -44,11 +44,6 @@ def embed_tracking_into_results(yolo_results: list[list], fps=30) -> list[list]:
         tracks = tracker.update(det, yolo_results[i].orig_img)
         if len(tracks) == 0:
             continue
-        # Did not quite get a line:         
-        #
-        #   predictor.results[i] = predictor.results[i][idx]
-        #
-        # in the original code.
 
         idx = tracks[:, -1].astype(int)
         yolo_results[i] = yolo_results[i][idx]
