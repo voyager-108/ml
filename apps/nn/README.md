@@ -1,10 +1,3 @@
-<style>
-{
-
-}
-</style>
-
-
 <div align="center" class="centered">
 
 # :brain: Нейронные сети 
